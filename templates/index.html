@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Political Chess</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .status { margin: 20px 0; padding: 10px; background: #f0f0f0; }
+        button { padding: 10px 20px; margin: 5px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Political Chess API Server</h1>
+        <div class="status">
+            <h2>Server Status: Online</h2>
+            <p>Available endpoints:</p>
+            <ul>
+                <li><code>POST /api/create_game</code> - Create a new game</li>
+                <li><code>GET /api/join_game/&lt;game_id&gt;</code> - Join an existing game</li>
+                <li><code>POST /api/make_move/&lt;game_id&gt;</code> - Make a move</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>

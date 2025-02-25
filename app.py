@@ -1,9 +1,12 @@
 from flask import Flask, jsonify, request, render_template
+from flask_cors import CORS
 from game_logic import ChessGame
+import os
 
 app = Flask(__name__)
+CORS(app)  # Enable CORS for all routes
 
-# Store active games
+# Store active games (in memory for now)
 games = {}
 
 @app.route('/')
