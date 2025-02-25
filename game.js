@@ -1,6 +1,127 @@
 // Game configuration
-const BOARD_SIZE = Math.min(window.innerWidth - 240, window.innerHeight - 40);
-const SQUARE_SIZE = BOARD_SIZE / 8;
+let BOARD_SIZE = Math.min(window.innerWidth - 240, window.innerHeight - 40);
+let SQUARE_SIZE = BOARD_SIZE / 8;
+let PIECE_SIZE = SQUARE_SIZE * 0.92;
+let PORTRAIT_SIZE = window.innerHeight * 0.2;
+let BOARD_OFFSET_X = 200;
+let BOARD_OFFSET_Y = (window.innerHeight - BOARD_SIZE) / 2;
+
+// Colors
+const COLORS = {
+    WHITE: '#FFFFFF',
+    BLACK: '#000000',
+    RED: '#C83232',
+    BLUE: '#3232DC',
+    GOLD: '#FFD700',
+    BOARD_LIGHT: '#FFFFFF',
+    BOARD_DARK: '#808080',
+    HIGHLIGHT: 'rgba(255, 255, 0, 0.5)'
+};
+
+// Game state
+let board = Array(8).fill().map(() => Array(8).fill(null));
+let selectedPiece = null;
+let turn = 'red';
+let gameOver = false;
+let winner = null;
+let capturedPiece = null;
+let captureTime = 0;
+let capturedPieces = [];
+let hoverPiece = null;
+let hoverStart = 0;// game.js - Core game logic
+class PoliticalChess {
+  constructor() {
+    this.boardSize = 8;
+    this.pieces = {
+      'R': '♖', 'N': '♘', 'B': '♗', 'Q': '♕',
+      'K': '♔', 'P': '♙',
+      'r': '♜', 'n': '♞', 'b': '♝', 'q': '♛',
+      'k': '♚', 'p': '♟'
+    };
+    this.initBoard();
+  }
+
+  initBoard() {
+    this.board = [
+      ['r','n','b','q','k','b','n','r'],
+      ['p','p','p','p','p','p','p','p'],
+      [' ',' ',' ',' ',' ',' ',' ',' '],
+      [' ',' ',' ',' ',' ',' ',' ',' '],
+      [' ',' ',' ',' ',' ',' ',' ',' '],
+      [' ',' ',' ',' ',' ',' ',' ',' '],
+      ['P','P','P','P','P','P','P','P'],
+      ['R','N','B','Q','K','B','N','R']
+    ];
+  }
+  // Add move validation and game logic here
+}
+
+// Initialize game when DOM loads
+document.addEventListener('DOMContentLoaded', () => {
+  window.game = new PoliticalChess();
+});<!-- templates/index.html -->
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Political Chess</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <h1>Political Chess</h1>
+  <div id="game-container">
+    <canvas id="chess-board" width="800" height="800"></canvas>
+  </div>
+  <script src="/game.js"></script>
+</body>
+</html>/* styles.css */
+body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #2c3e50;
+  color: white;
+}
+
+#chess-board {
+  border: 2px solid #ecf0f1;
+  box-shadow: 0 0 20px rgba(0,0,0,0.5);
+}
+
+// Canvas and context
+const canvas = document.getElementById('game-board');
+const ctx = canvas.getContext('2d');
+
+// Audio
+const backgroundMusic = document.getElementById('background-music');
+const volumeSlider = document.getElementById('volume-slider');
+let isMuted = false;
+
+// Piece shapes (simplified versions of your Python shapes)
+const PIECE_SHAPES = {
+    pawn: [
+        [0.4, 0.9], [0.6, 0.9], [0.55, 0.7], [0.45, 0.7]
+    ],
+    rook: [
+        [0.3, 0.9], [0.7, 0.9], [0.7, 0.3], [0.6, 0.3],
+        [0.6, 0.4], [0.4, 0.4], [0.4, 0.3], [0.3, 0.3]
+    ],
+    knight: [
+        [0.3, 0.9], [0.7, 0.9], [0.7, 0.4], [0.4, 0.3],
+        [0.3, 0.4]
+    ],
+    bishop: [
+        [0.3, 0.9], [0.7, 0.9], [0.6, 0.5], [0.5, 0.3],
+        [0.4, 0.5]
+    ],
+    queen: [
+        [0.3, 0.9], [0.7, 0.9], [0.7, 0.3], [0.5, 0.1],
+        [0.3, 0.3]
+    ],
+    king: [
+        [0.3, 0.9], [0.7, 0.9], [0.7, 0.5], [0.5, 0.5],
+        [0.5, 0.1], [0.5, 0.5], [0.3, 0.5]
+    ]
+};
 
 // Political figures data
 const PIECES = {
