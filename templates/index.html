@@ -7,16 +7,11 @@
     <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-    <script src="/game.js"></script>
-    <script src="/political_chess.py" type="text/python"></script>
-    <script src="https://pyscript.net/latest/pyscript.js"></script>
-    <py-config>
-        packages = ["pygame"]
-    </py-config>
-    <py-script>
-        import political_chess
-        political_chess.main()
-    </py-script>
+    <div id="game-container">
+        <h1>Political Chess</h1>
+        <p>Your Python game is working locally! To make it work on Vercel, we need to convert it to use HTML5 Canvas and JavaScript instead of Pygame.</p>
+        <p>Would you like me to help you convert the game to work in the browser?</p>
+    </div>
 </body>
 </html>
                 <li><code>GET /api/join_game/&lt;game_id&gt;</code> - Join an existing game</li>
