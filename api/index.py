@@ -1,13 +1,23 @@
-from flask import Flask
+from flask import Flask, Response
 app = Flask(__name__)
 
 @app.route('/')
 def chess():
-    return '''
-    <html><body style="background:black;color:white">
-    <h1>Political Chess (WORKING BASE)</h1>
-    <div id="game" style="border:2px solid white;width:800px;height:800px">
-    GAME LOADING...
-    </div>
-    </body></html>
-    '''
+    return Response('''
+        <html>
+        <body style="background:#000;color:#fff">
+            <h1>Political Chess Online</h1>
+            <div id="board" style="font-family:monospace;font-size:24px">
+            ''' + 
+            '\n'.join(['♜ ♞ ♝ ♛ ♚ ♝ ♞ ♜<br/>'] + 
+                     ['♟'*8 + '<br/>']*2 +
+                     ['&nbsp;'*15 + '<br/>']*4 +
+                     ['♙'*8 + '<br/>']*2 +
+                     ['♖ ♘ ♗ ♕ ♔ ♗ ♘ ♖']) + '''
+            </div>
+        </body>
+        </html>
+    ''', mimetype='text/html')
+
+def main():
+    app.run(host='0.0.0.0')
