@@ -85,6 +85,51 @@ body {
 #chess-board {
   border: 2px solid #ecf0f1;
   box-shadow: 0 0 20px rgba(0,0,0,0.5);
+}// Add to PoliticalChess class
+class PoliticalChess {
+  constructor() {
+    // ... existing code ...
+    this.canvas = document.getElementById('chess-board');
+    this.ctx = this.canvas.getContext('2d');
+    this.squareSize = this.canvas.width / 8;
+    this.drawBoard();
+  }
+
+  drawBoard() {
+    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    
+    // Draw squares
+    for (let row = 0; row < 8; row++) {
+      for (let col = 0; col < 8; col++) {
+        this.ctx.fillStyle = (row + col) % 2 === 0 ? '#f0d9b5' : '#b58863';
+        this.ctx.fillRect(
+          col * this.squareSize,
+          row * this.squareSize,
+          this.squareSize,
+          this.squareSize
+        );
+      }
+    }
+
+    // Draw pieces
+    this.ctx.font = `${this.squareSize * 0.8}px Arial`;
+    this.ctx.textAlign = 'center';
+    this.ctx.textBaseline = 'middle';
+    
+    for (let row = 0; row < 8; row++) {
+      for (let col = 0; col < 8; col++) {
+        const piece = this.board[row][col];
+        if (piece !== ' ') {
+          this.ctx.fillStyle = piece === piece.toLowerCase() ? 'black' : 'white';
+          this.ctx.fillText(
+            this.pieces[piece],
+            col * this.squareSize + this.squareSize/2,
+            row * this.squareSize + this.squareSize/2
+          );
+        }
+      }
+    }
+  }
 }
 
 // Canvas and context
