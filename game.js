@@ -141,7 +141,39 @@ class PoliticalChess {
   <canvas id="chess-board" width="800" height="800"></canvas>
   <script src="/game.js"></script>
 </body>
-</html>
+</html>{
+  "version": 2,
+  "builds": [{
+    "src": "political_chess.py",
+    "use": "@vercel/python"
+  }],
+  "routes": [{
+    "src": "/(.*)",
+    "dest": "political_chess.py"
+  }]
+}from flask import Flask
+app = Flask(__name__)
+
+@app.route('/')
+def chess():
+    return '''
+    <html>
+    <body style="margin:0;background:#000">
+    <canvas id="game-board" width="800" height="800"></canvas>
+    <script>
+    // Simple canvas chess board
+    const canvas = document.getElementById('game-board');
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#fff';
+    ctx.font = '50px Arial';
+    ctx.fillText('♔ CHESS LOADING...', 100, 400);
+    </script>
+    </body>
+    </html>
+    '''
+
+if __name__ == '__main__':
+    app.run()
 
 // Canvas and context
 const canvas = document.getElementById('game-board');
