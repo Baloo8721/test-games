@@ -130,7 +130,18 @@ class PoliticalChess {
       }
     }
   }
-}
+}<!DOCTYPE html>
+<html>
+<head>
+  <title>Political Chess</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <h1>Political Chess</h1>
+  <canvas id="chess-board" width="800" height="800"></canvas>
+  <script src="/game.js"></script>
+</body>
+</html>
 
 // Canvas and context
 const canvas = document.getElementById('game-board');
