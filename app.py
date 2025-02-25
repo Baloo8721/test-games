@@ -1,15 +1,15 @@
-from flask import Flask, jsonify, render_template
-import os
+from flask import Flask, jsonify
 
 app = Flask(__name__)
 
-@app.route('/')
-def index():
-    return render_template('index.html')
-
-@app.route('/api/test')
-def test():
-    return jsonify({'status': 'ok', 'message': 'API is working'})
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def catch_all(path):
+    return jsonify({
+        'status': 'ok',
+        'message': 'Flask app is running',
+        'path': path
+    })
 
 if __name__ == '__main__':
-    app.run()
+    app.run(host='0.0.0.0', port=3000)
