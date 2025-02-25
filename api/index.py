@@ -1,22 +1,27 @@
-from http.server import BaseHTTPRequestHandler
-import json
-from urllib.parse import parse_qs, urlparse
-from .game_state import ChessGame, games
+from flask import Flask, render_template, send_from_directory, jsonify
+import os
 
-class handler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        url = urlparse(self.path)
-        if url.path == '/':
-            self.send_json({
-                'status': 'ok',
-                'message': 'Political Chess API',
-                'endpoints': [
-                    {'method': 'POST', 'path': '/game/create', 'description': 'Create a new game'},
-                    {'method': 'GET', 'path': '/game/{game_id}', 'description': 'Get game state'},
-                    {'method': 'POST', 'path': '/game/{game_id}/move', 'description': 'Make a move'}
-                ]
-            })
-        elif url.path.startswith('/game/'):
+app = Flask(__name__, static_folder='../', template_folder='../templates')
+
+@app.route('/')
+def home():
+    return render_template('index.html')
+
+@app.route('/<path:filename>')
+def serve_static(filename):
+    return send_from_directory(app.static_folder, filename)
+
+@app.route('/images/<path:filename>')
+def serve_images(filename):
+    return send_from_directory(os.path.join(app.static_folder, 'images'), filename)
+
+@app.route('/assets/<path:filename>')
+def serve_assets(filename):
+    return send_from_directory(os.path.join(app.static_folder, 'assets'), filename)
+
+@app.route('/audio/<path:filename>')
+def serve_audio(filename):
+    return send_from_directory(os.path.join(app.static_folder, 'audio'), filename)
             game_id = url.path.split('/')[2]
             if game_id in games:
                 self.send_json({'status': 'ok', 'game': games[game_id].to_dict()})

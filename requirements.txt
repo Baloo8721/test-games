@@ -1,1 +1,4 @@
-
+Flask==2.0.1
+pygame==2.5.2
+gunicorn==20.1.0
+pyscript==0.1.5
