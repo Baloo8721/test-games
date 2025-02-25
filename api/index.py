@@ -1,17 +1,17 @@
 from http.server import BaseHTTPRequestHandler
-from datetime import datetime
+import json
 
-class handler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        self.send_response(200)
-        self.send_header('Content-type', 'application/json')
-        self.end_headers()
-        
-        response = {
-            'status': 'ok',
-            'message': 'API is working',
-            'path': self.path,
-            'timestamp': datetime.now().isoformat()
+def handler(request):
+    if request.method == 'GET':
+        return {
+            'statusCode': 200,
+            'body': json.dumps({
+                'status': 'ok',
+                'message': 'API is working',
+                'endpoints': [
+                    {'method': 'POST', 'path': '/api/create_game', 'description': 'Create a new game'},
+                    {'method': 'GET', 'path': '/api/join_game/<game_id>', 'description': 'Join an existing game'},
+                    {'method': 'POST', 'path': '/api/make_move/<game_id>', 'description': 'Make a move'}
+                ]
+            })
         }
-        
-        self.wfile.write(str(response).encode())
