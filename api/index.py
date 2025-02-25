@@ -1,15 +1,33 @@
-from flask import Flask, render_template, send_from_directory
+from flask import Flask, render_template, send_from_directory, jsonify
 import os
 
-app = Flask(__name__, static_folder='../', template_folder='../templates')
+app = Flask(__name__, 
+           static_folder='../',
+           static_url_path='',
+           template_folder='../templates')
 
 @app.route('/')
 def home():
     return render_template('index.html')
 
-@app.route('/<path:filename>')
-def serve_static(filename):
-    return send_from_directory(app.static_folder, filename)
+@app.route('/images/<path:filename>')
+def serve_images(filename):
+    return send_from_directory(os.path.join(app.static_folder, 'images'), filename)
+
+@app.route('/assets/<path:filename>')
+def serve_assets(filename):
+    return send_from_directory(os.path.join(app.static_folder, 'assets'), filename)
+
+@app.route('/audio/<path:filename>')
+def serve_audio(filename):
+    return send_from_directory(os.path.join(app.static_folder, 'audio'), filename)
+
+@app.route('/game_data')
+def get_game_data():
+    return jsonify({
+        'red_pieces': RED_PIECES,
+        'blue_pieces': BLUE_PIECES
+    })
             game_id = url.path.split('/')[2]
             if game_id in games:
                 self.send_json({'status': 'ok', 'game': games[game_id].to_dict()})
