@@ -2,13 +2,14 @@ import os
 import requests
 from pathlib import Path
 from PIL import Image
-import numpy as np
+from cairosvg import svg2png
+from io import BytesIO
 
 # Create assets directory if it doesn't exist
 ASSETS_DIR = Path('assets')
 ASSETS_DIR.mkdir(exist_ok=True)
 
-# Chess piece PNG URLs (using Wikimedia Commons pieces)
+# Chess piece SVG URLs (using lichess pieces)
 PIECES = {
     'pawn': 'https://raw.githubusercontent.com/lichess-org/lila/master/public/piece/cburnett/wP.svg',
     'rook': 'https://raw.githubusercontent.com/lichess-org/lila/master/public/piece/cburnett/wR.svg',
@@ -18,39 +19,46 @@ PIECES = {
     'king': 'https://raw.githubusercontent.com/lichess-org/lila/master/public/piece/cburnett/wK.svg'
 }
 
-def create_piece_image(size=128):
-    """Create a blank piece image of the specified size"""
-    return Image.new('RGBA', (size, size), (0, 0, 0, 0))
+def download_and_convert_piece(url, size=128):
+    """Download SVG from URL and convert to PNG"""
+    response = requests.get(url)
+    if response.status_code != 200:
+        raise Exception(f"Failed to download from {url}")
+    
+    # Convert SVG to PNG using cairosvg
+    png_data = svg2png(bytestring=response.content, output_width=size, output_height=size)
+    return Image.open(BytesIO(png_data))
 
-def draw_piece(piece_type, color):
-    """Draw a chess piece with the specified color"""
-    size = 128  # Size of the piece image
-    img = create_piece_image(size)
+def create_colored_piece(img, color):
+    """Create a colored version of the piece"""
+    # Create a new image with the desired color
+    colored = Image.new('RGBA', img.size, color + (0,))  # Transparent background
     
-    # Draw the basic shape
-    if piece_type == 'pawn':
-        # Simple pawn shape
-        points = [(64, 100), (44, 90), (44, 60), (64, 40), (84, 60), (84, 90)]
-        color_rgb = (255, 0, 0) if color == 'red' else (0, 0, 255)
-        img_array = np.array(img)
-        
-        # Draw filled polygon
-        from PIL import ImageDraw
-        draw = ImageDraw.Draw(img)
-        draw.polygon(points, fill=color_rgb + (255,))
-        
-    elif piece_type == 'rook':
-        # Simple rook shape
-        points = [(40, 100), (88, 100), (88, 80), (78, 80), (78, 40), (88, 40), (88, 30), (40, 30), (40, 40), (50, 40), (50, 80), (40, 80)]
-        color_rgb = (255, 0, 0) if color == 'red' else (0, 0, 255)
-        
-        from PIL import ImageDraw
-        draw = ImageDraw.Draw(img)
-        draw.polygon(points, fill=color_rgb + (255,))
-        
-    # Add more piece types here...
+    # Use the original image as a mask
+    colored.putalpha(img.getchannel('A'))
+    return colored
+
+def create_pieces():
+    for piece, url in PIECES.items():
+        print(f"Creating {piece}...")
+        try:
+            # Download and convert the SVG
+            piece_img = download_and_convert_piece(url)
+            
+            # Create red version
+            red_img = create_colored_piece(piece_img, (255, 0, 0))
+            red_img.save(ASSETS_DIR / f"{piece}_red.png")
+            
+            # Create blue version
+            blue_img = create_colored_piece(piece_img, (0, 0, 255))
+            blue_img.save(ASSETS_DIR / f"{piece}_blue.png")
+            
+        except Exception as e:
+            print(f"Error creating {piece}: {str(e)}")
+            continue
     
-    return img
+    print("Done! Chess pieces have been created.")
+
 
 def create_pieces():
     for piece in PIECES.keys():
