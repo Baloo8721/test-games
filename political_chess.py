@@ -937,6 +937,9 @@ def main():
     # Initialize board dimensions
     update_sizes(WINDOW_WIDTH, WINDOW_HEIGHT)
     
+    # Track slider dragging state
+    is_dragging_slider = False
+    
     # Main game loop
     running = True
     while running:
@@ -951,7 +954,21 @@ def main():
                     screen = pygame.display.set_mode((new_width, new_height), pygame.RESIZABLE)
                     update_sizes(new_width, new_height)
                 elif event.type == pygame.MOUSEBUTTONDOWN:
+                    # First check if we clicked any music controls
+                    music_button_rect, music_slider_rect = draw_left_panel(screen, game)
+                    if handle_music_controls(event.pos, music_button_rect, music_slider_rect):
+                        if music_slider_rect.collidepoint(event.pos):
+                            is_dragging_slider = True
+                        continue
+                    # If not music controls, handle game click
                     game.handle_click(event.pos)
+                elif event.type == pygame.MOUSEBUTTONUP:
+                    is_dragging_slider = False
+                elif event.type == pygame.MOUSEMOTION:
+                    if is_dragging_slider:
+                        # Update volume while dragging
+                        music_button_rect, music_slider_rect = draw_left_panel(screen, game)
+                        handle_music_controls(event.pos, music_button_rect, music_slider_rect)
             
             # Clear screen and draw game state
             screen.fill(BLACK)
