@@ -232,28 +232,23 @@ class ChessPiece:
         try:
             print(f"\n=== Loading images for {self.name} ===\n")
             portrait_path = IMAGE_DIR / self.portrait
-            meme_path = IMAGE_DIR / self.meme
             
-            # Debug print
-            print(f"Loading images for {self.name}:")
-            print(f"Portrait path: {portrait_path} (exists: {portrait_path.exists()})")
-            print(f"Meme path: {meme_path} (exists: {meme_path.exists()})")
+            # Initialize meme surfaces list and tracking variables
+            self._meme_surfaces = []
+            self._current_meme_index = 0
+            self._last_meme_switch = 0
+            self._meme_switch_delay = 1000  # Switch meme every 1 second
             
             # Try to convert AVIF to PNG first
             if self.name in ['Elon Musk', 'Kash Patel']:
-                # Convert AVIF to PNG using sips
                 png_path = portrait_path.with_suffix('.png')
                 os.system(f'sips -s format png "{portrait_path}" --out "{png_path}"')
                 portrait_path = png_path
             
-            # Check if files exist first
+            # Check if portrait exists
             if not portrait_path.exists():
                 print(f"Missing portrait for {self.name}: {self.portrait} - Please add this image to the images directory")
                 return
-                
-            if not meme_path.exists():
-                print(f"Missing meme for {self.name}: {self.meme} - Please add this image to the images directory")
-                # Continue anyway to show portrait
             
             # Load portrait
             try:
@@ -268,19 +263,31 @@ class ChessPiece:
                 import traceback
                 traceback.print_exc()
             
-            # Load meme if it exists
-            if meme_path.exists():
+            # Load main meme
+            main_meme_path = IMAGE_DIR / self.meme
+            if main_meme_path.exists():
                 try:
-                    print(f"Attempting to load meme for {self.name}...")
-                    meme_img = pygame.image.load(str(meme_path))
-                    print(f"Meme loaded, attempting to scale...")
-                    self._meme_surface = pygame.transform.scale(meme_img, (PORTRAIT_SIZE, PORTRAIT_SIZE))
-                    print(f"Successfully loaded and scaled meme for {self.name}")
-                    print(f"Meme surface size: {self._meme_surface.get_size()}")
+                    print(f"Loading main meme: {main_meme_path}")
+                    meme_surface = pygame.image.load(str(main_meme_path))
+                    self._meme_surfaces.append(meme_surface)
+                    print(f"Successfully loaded main meme")
                 except Exception as e:
-                    print(f"Error loading meme for {self.name}: {e}")
-                    import traceback
-                    traceback.print_exc()
+                    print(f"Error loading main meme: {e}")
+            
+            # Try to load additional meme (meme1)
+            base_name = self.meme.rsplit('.', 1)[0]  # Remove extension
+            extra_meme_path = IMAGE_DIR / f"{base_name}1.jpg"
+            if extra_meme_path.exists():
+                try:
+                    print(f"Loading extra meme: {extra_meme_path}")
+                    meme_surface = pygame.image.load(str(extra_meme_path))
+                    self._meme_surfaces.append(meme_surface)
+                    print(f"Successfully loaded extra meme")
+                except Exception as e:
+                    print(f"Error loading extra meme: {e}")
+            
+            if not self._meme_surfaces:
+                print(f"No memes found for {self.name}")
                 
         except Exception as e:
             print(f"Error loading images for {self.name}: {e}")
@@ -360,22 +367,35 @@ class ChessPiece:
             surface.blit(scaled_portrait, (square_x, square_y))
 
     def draw_capture_meme(self, surface: pygame.Surface):
-        if self._meme_surface:
-            # Create semi-transparent overlay
-            overlay = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
+        if len(self._meme_surfaces) > 0:
+            # Create semi-transparent overlay for full window
+            overlay = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.SRCALPHA)
             overlay.fill((0, 0, 0, 180))  # Dark overlay for better contrast
             surface.blit(overlay, (0, 0))
             
-            # Scale meme to larger size
-            meme_size = min(int(BOARD_SIZE * 0.8), 800)  # 80% of board size, max 800px
-            scaled_meme = pygame.transform.scale(self._meme_surface, (meme_size, meme_size))
+            # Use first meme for capture display
+            capture_meme = self._meme_surfaces[0]
+            
+            # Get window dimensions
+            window_width = surface.get_width()
+            window_height = surface.get_height()
+            
+            # Calculate meme size (maintain aspect ratio)
+            meme_width = capture_meme.get_width()
+            meme_height = capture_meme.get_height()
+            scale = min(window_width * 0.8 / meme_width, window_height * 0.8 / meme_height)
+            scaled_width = int(meme_width * scale)
+            scaled_height = int(meme_height * scale)
+            
+            # Scale meme
+            scaled_meme = pygame.transform.scale(capture_meme, (scaled_width, scaled_height))
             
             # Center meme on screen
-            meme_rect = scaled_meme.get_rect(center=(BOARD_SIZE // 2, BOARD_SIZE // 2))
+            meme_rect = scaled_meme.get_rect(center=(window_width // 2, window_height // 2))
             surface.blit(scaled_meme, meme_rect)
             
             # Add piece name at top
-            name_font_size = int(BOARD_SIZE * 0.06)
+            name_font_size = int(window_height * 0.06)
             name_font = pygame.font.SysFont('Arial', name_font_size, bold=True)
             name_text = name_font.render(self.name, True, WHITE)
             name_rect = name_text.get_rect(center=(BOARD_SIZE // 2, BOARD_SIZE // 4))
@@ -411,8 +431,8 @@ class ChessPiece:
 
 class ChessGame:
     def __init__(self):
-        self.board: List[List[Optional[ChessPiece]]] = [[None for _ in range(8)] for _ in range(8)]
-        self.selected_piece: Optional[ChessPiece] = None
+        self.board = [[None for _ in range(8)] for _ in range(8)]
+        self.selected_piece = None
         self.turn = 'red'  # red goes first
         self.game_over = False
         self.winner = None
@@ -420,17 +440,15 @@ class ChessGame:
         self.capture_time = 0
         self.waiting_for_click = False
         self.captured_pieces = []  # List to track all captured pieces
-        self.winner = None
-        self.captured_piece: Optional[ChessPiece] = None
-        self.capture_time = 0
-        self.waiting_for_click = False  # Add flag to wait for click
         self.setup_board()
-        self._winner_surface = None
+        
+        # Load winner image
         try:
             winner_img = pygame.image.load(str(IMAGE_DIR / 'golden_chainsaw.jpg'))
             self._winner_surface = pygame.transform.scale(winner_img, (PORTRAIT_SIZE, PORTRAIT_SIZE))
         except Exception as e:
             print(f"Error loading winner image: {e}")
+            self._winner_surface = None
 
     def setup_board(self):
         # Set up red pieces (top)
@@ -506,10 +524,22 @@ class ChessGame:
                 surface.blit(overlay, (0, 0))
                 
                 # Draw large winner text at top
-                winner_font_size = min(int(BOARD_SIZE * 0.12), 96)  # Larger text, capped at 96pt
+                # Even smaller font size and more aggressive scaling
+                winner_font_size = min(int(BOARD_SIZE * 0.06), 54)  # Reduced from 0.08 to 0.06, max 54pt
                 font = pygame.font.SysFont('Arial', winner_font_size, bold=True)
-                winner_text = font.render(f"{self.winner.upper()} WINS!", True, GOLD)
-                text_rect = winner_text.get_rect(center=(BOARD_SIZE // 2, BOARD_SIZE // 4))
+                winner_color = BLUE if self.winner == 'blue' else RED
+                team_name = "DEMOCRATS" if self.winner == 'blue' else "REPUBLICANS"
+                winner_text = font.render(f"{team_name} WIN!", True, winner_color)
+                
+                # More aggressive width constraint (80% of board width instead of 90%)
+                if winner_text.get_width() > BOARD_SIZE * 0.8:  # If text is wider than 80% of board
+                    scale = (BOARD_SIZE * 0.8) / winner_text.get_width()
+                    winner_font_size = int(winner_font_size * scale)
+                    font = pygame.font.SysFont('Arial', winner_font_size, bold=True)
+                    winner_text = font.render(f"{team_name} WIN!", True, winner_color)
+                
+                # Position text slightly higher
+                text_rect = winner_text.get_rect(center=(BOARD_SIZE // 2, BOARD_SIZE // 5))
                 surface.blit(winner_text, text_rect)
                 
                 # Load and draw golden chainsaw image
@@ -522,34 +552,36 @@ class ChessGame:
                     chainsaw_surface = pygame.transform.scale(chainsaw, (chainsaw_size, chainsaw_size))
                     
                     # Center the chainsaw image
-                    chainsaw_rect = chainsaw_surface.get_rect(center=(BOARD_SIZE // 2, BOARD_SIZE // 2 + SQUARE_SIZE))
+                    chainsaw_rect = chainsaw_surface.get_rect(center=(BOARD_SIZE // 2, BOARD_SIZE // 2))
                     surface.blit(chainsaw_surface, chainsaw_rect)
+                    
+                    # Draw New Game button
+                    button_width = min(int(BOARD_SIZE * 0.3), 300)  # 30% of board width, max 300px
+                    button_height = min(int(BOARD_SIZE * 0.1), 80)  # 10% of board height, max 80px
+                    button_rect = pygame.Rect(
+                        BOARD_SIZE // 2 - button_width // 2,
+                        int(BOARD_SIZE * 0.8),  # Position at 80% of board height
+                        button_width,
+                        button_height
+                    )
+                    
+                    # Button colors
+                    button_color = (34, 139, 34)  # Forest green
+                    pygame.draw.rect(surface, button_color, button_rect, border_radius=10)
+                    pygame.draw.rect(surface, WHITE, button_rect, 3, border_radius=10)
+                    
+                    # Button text with dynamic sizing
+                    button_font_size = min(int(button_height * 0.6), 48)
+                    button_font = pygame.font.SysFont('Arial', button_font_size, bold=True)
+                    button_text = button_font.render('New Game', True, WHITE)
+                    button_text_rect = button_text.get_rect(center=button_rect.center)
+                    surface.blit(button_text, button_text_rect)
             except Exception as e:
                 print(f"Error drawing winner screen: {e}")
 
         # Draw capture meme if a piece was just captured and waiting for click
-        if self.captured_piece and self.waiting_for_click:
+        if self.captured_piece and self.waiting_for_click and not self.game_over:
             self.captured_piece.draw_capture_meme(surface)
-
-        # Draw winner message and trophy
-        if self.game_over and self.winner:
-            # Draw semi-transparent overlay
-            overlay = pygame.Surface((WINDOW_SIZE, WINDOW_SIZE), pygame.SRCALPHA)
-            overlay.fill((0, 0, 0, 128))
-            surface.blit(overlay, (0, 0))
-            
-            # Draw winner text
-            font = pygame.font.SysFont('Arial', 48)
-            color_name = "Republicans" if self.winner == 'red' else "Democrats"
-            text = f"{color_name} win the Golden Chainsaw!"
-            text_surface = font.render(text, True, RED if self.winner == 'red' else BLUE)
-            text_rect = text_surface.get_rect(center=(WINDOW_SIZE//2, WINDOW_SIZE//3))
-            surface.blit(text_surface, text_rect)
-            
-            # Draw golden chainsaw trophy
-            if self._winner_surface:
-                trophy_rect = self._winner_surface.get_rect(center=(WINDOW_SIZE//2, 2*WINDOW_SIZE//3))
-                surface.blit(self._winner_surface, trophy_rect)
 
     def get_piece_at(self, x: int, y: int) -> Optional[ChessPiece]:
         if 0 <= x < 8 and 0 <= y < 8:
@@ -624,75 +656,131 @@ class ChessGame:
                 y += step_y
         return True
 
+    def _load_chainsaw(self):
+        chainsaw_path = IMAGE_DIR / 'golden_chainsaw.jpg'
+        if chainsaw_path.exists():
+            try:
+                print("Loading golden chainsaw image...")
+                self.chainsaw_surface = pygame.image.load(str(chainsaw_path))
+                print("Successfully loaded chainsaw image")
+            except Exception as e:
+                print(f"Error loading chainsaw: {e}")
+                self.chainsaw_surface = None
+    
     def move_piece(self, piece: ChessPiece, new_x: int, new_y: int):
-        # Capture piece if present
+        print(f"Moving {piece.color} {piece.piece_type} to {new_x}, {new_y}")
+        
+        # Get target piece before updating board
         target = self.get_piece_at(new_x, new_y)
-        if target:
-            # Store captured piece for meme display
-            self.captured_piece = target
-            self.capture_time = pygame.time.get_ticks()
-            self.waiting_for_click = True  # Set flag to wait for click
-            self.captured_pieces.append(target)  # Add to captured pieces list
-            
-            # Check for game over
-            if target.piece_type == 'king':
-                self.game_over = True
-                self.winner = piece.color
-
+        
         # Update board
         self.board[piece.y][piece.x] = None
         self.board[new_y][new_x] = piece
         piece.x = new_x
         piece.y = new_y
         piece.has_moved = True
+        
+        # Handle capture if there was a piece at the target location
+        if target and target != piece:
+            print(f"Capturing {target.color} {target.piece_type}!")
+            self.captured_pieces.append(target)
+            
+            if target.piece_type == 'king':
+                print("!!! GAME OVER - KING CAPTURED !!!")
+                print(f"!!! {piece.color.upper()} TEAM WINS !!!")
+                self.game_over = True
+                self.winner = piece.color
+                self.selected_piece = None
+                self.turn = None  # Disable turns
+                # Don't return here - let the game continue to show the winner screen
+            else:
+                # Show capture meme if not game over
+                if len(target._meme_surfaces) > 0:
+                    self.captured_piece = target
+                    self.capture_time = pygame.time.get_ticks()
+                    self.waiting_for_click = True
+        
+        # Switch turns if game is not over
+        if not self.game_over:
+            self.turn = 'blue' if self.turn == 'red' else 'red'
 
     def handle_click(self, pos: Tuple[int, int]):
         try:
+            print("\n=== HANDLING CLICK ===")
+            print(f"Game over: {self.game_over}")
+            print(f"Current turn: {self.turn}")
+            
+            # If game is over, check for new game button click
+            if self.game_over and self.winner:
+                print("Game is over, checking for new game click")
+                screen_width, screen_height = pygame.display.get_surface().get_size()
+                button_width = min(300, screen_width * 0.3)
+                button_height = min(80, screen_height * 0.1)
+                button_rect = pygame.Rect(
+                    screen_width // 2 - button_width // 2,
+                    screen_height * 0.8,
+                    button_width,
+                    button_height
+                )
+                if button_rect.collidepoint(pos):
+                    print("New game button clicked!")
+                    self.__init__()  # Reset the game completely
+                    self.game_over = False
+                    self.winner = None
+                    self.turn = 'red'
+                    return
+                return  # Just return, don't process any other clicks when game is over
+            
             # Get click position relative to board
             board_x = pos[0] - BOARD_OFFSET_X
             board_y = pos[1] - BOARD_OFFSET_Y
             
             # Check if click is outside the board
             if board_x < 0 or board_x >= BOARD_SIZE or board_y < 0 or board_y >= BOARD_SIZE:
-                self.selected_piece = None  # Deselect if clicking outside
+                print("Click outside board")
+                self.selected_piece = None
                 return
             
             # Convert to board coordinates
             x = board_x // SQUARE_SIZE
             y = board_y // SQUARE_SIZE
-            
-            # Ensure valid board position
-            if not (0 <= x < 8 and 0 <= y < 8):
-                self.selected_piece = None
-                return
+            print(f"Board coordinates: {x}, {y}")
             
             # If waiting for click after capture, clear capture state
             if self.waiting_for_click and self.captured_piece:
+                print("Clearing capture state")
                 self.captured_piece = None
                 self.waiting_for_click = False
-                return
+                # Don't return here - allow the next move
             
             clicked_piece = self.get_piece_at(x, y)
+            if clicked_piece:
+                print(f"Clicked on {clicked_piece.color} {clicked_piece.piece_type}")
             
             # If a piece is already selected
             if self.selected_piece:
+                print(f"Selected piece: {self.selected_piece.color} {self.selected_piece.piece_type}")
                 # If clicking the same piece, deselect it
                 if clicked_piece == self.selected_piece:
+                    print("Deselecting piece")
                     self.selected_piece = None
                 # If clicking a valid move location
                 elif self.is_valid_move(self.selected_piece, x, y):
+                    print("Making move...")
                     self.move_piece(self.selected_piece, x, y)
                     self.selected_piece = None
-                    if not self.waiting_for_click:  # Only change turn if not showing capture
-                        self.turn = 'blue' if self.turn == 'red' else 'red'
+                    print(f"Current turn: {self.turn}")
                 # If clicking a different piece of same color, select it
                 elif clicked_piece and clicked_piece.color == self.turn:
+                    print("Switching to new piece")
                     self.selected_piece = clicked_piece
                 # If clicking invalid location, deselect
                 else:
+                    print("Invalid move, deselecting")
                     self.selected_piece = None
             # If no piece selected and clicking own piece, select it
             elif clicked_piece and clicked_piece.color == self.turn:
+                print("Selecting new piece")
                 self.selected_piece = clicked_piece
         except Exception as e:
             print(f"Error handling click: {e}")
@@ -769,10 +857,19 @@ def draw_left_panel(screen, game):
         screen.blit(name_text, name_rect)
     
     # Draw hovered piece's meme
-    if hovered_piece and hovered_piece._meme_surface:
+    if hovered_piece and len(hovered_piece._meme_surfaces) > 0:
+        # Check if it's time to switch memes
+        current_time = pygame.time.get_ticks()
+        if current_time - hovered_piece._last_meme_switch >= hovered_piece._meme_switch_delay:
+            hovered_piece._current_meme_index = (hovered_piece._current_meme_index + 1) % len(hovered_piece._meme_surfaces)
+            hovered_piece._last_meme_switch = current_time
+        
+        # Get current meme
+        current_meme = hovered_piece._meme_surfaces[hovered_piece._current_meme_index]
+        
+        # Scale and display meme
         meme_size = min(LEFT_PANEL_WIDTH * 1.5, WINDOW_HEIGHT * 0.3)
-        scaled_meme = pygame.transform.scale(hovered_piece._meme_surface, 
-                                           (meme_size, meme_size))
+        scaled_meme = pygame.transform.scale(current_meme, (meme_size, meme_size))
         meme_rect = scaled_meme.get_rect(center=mouse_pos)
         
         # Ensure meme stays within screen bounds
@@ -803,22 +900,36 @@ def handle_music_controls(pos, button_rect, slider_rect):
     return False
 
 def main():
-    global WINDOW_SIZE, BOARD_SIZE, SQUARE_SIZE, PIECE_SIZE, PORTRAIT_SIZE, IS_MUTED, MUSIC_VOLUME
+    global BOARD_SIZE, SQUARE_SIZE, PIECE_SIZE, PORTRAIT_SIZE, IS_MUTED, MUSIC_VOLUME
     
-    pygame.init()  # Make sure pygame is initialized
+    # Initialize pygame
+    if not pygame.get_init():
+        pygame.init()
+    if not pygame.mixer.get_init():
+        pygame.mixer.init()
     
-    # Start background music if file exists
-    if BACKGROUND_MUSIC.exists():
-        try:
+    # Load chainsaw image
+    chainsaw_path = IMAGE_DIR / 'golden_chainsaw.jpg'
+    chainsaw_surface = None
+    try:
+        if chainsaw_path.exists():
+            chainsaw_surface = pygame.image.load(str(chainsaw_path))
+            chainsaw_surface = pygame.transform.scale(chainsaw_surface, (400, 300))
+    except Exception as e:
+        print(f"Warning: Could not load chainsaw image: {e}")
+    
+    # Start background music
+    try:
+        if BACKGROUND_MUSIC.exists():
             pygame.mixer.music.load(str(BACKGROUND_MUSIC))
             pygame.mixer.music.set_volume(MUSIC_VOLUME)
-            pygame.mixer.music.play(-1)  # -1 means loop indefinitely
-        except Exception as e:
-            print(f"Error loading background music: {e}")
+            pygame.mixer.music.play(-1)
+    except Exception as e:
+        print(f"Warning: Could not load background music: {e}")
     
     clock = pygame.time.Clock()
     game = ChessGame()
-
+    
     # Set initial window size
     screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.RESIZABLE)
     pygame.display.set_caption("Political Chess")
@@ -826,96 +937,99 @@ def main():
     # Initialize board dimensions
     update_sizes(WINDOW_WIDTH, WINDOW_HEIGHT)
     
-    # New Game button properties
-    button_width = 200
-    button_height = 50
-    button_color = (50, 205, 50)  # Green color
-    button_hover_color = (34, 139, 34)  # Darker green
-    button_text = "New Game"
-    button_font = None
-    button_rect = None
-    
+    # Main game loop
     running = True
     while running:
         try:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
+                    break
                 elif event.type == pygame.VIDEORESIZE:
-                    # Get new window size, ensuring minimum dimensions
                     new_width = max(event.w, MIN_WINDOW_WIDTH)
                     new_height = max(event.h, MIN_WINDOW_HEIGHT)
-                    
-                    # Update the screen and all size-dependent variables
                     screen = pygame.display.set_mode((new_width, new_height), pygame.RESIZABLE)
                     update_sizes(new_width, new_height)
                 elif event.type == pygame.MOUSEBUTTONDOWN:
-                    # Get mouse position
-                    mouse_pos = pygame.mouse.get_pos()
-                    
-                    # Get music control areas
-                    music_button, slider = draw_left_panel(screen, game)
-                    
-                    # Check if click was on music controls
-                    if handle_music_controls(mouse_pos, music_button, slider):
-                        continue
-                    
-                    if game.game_over and button_rect and button_rect.collidepoint(mouse_pos):
-                        # Reset game if New Game button is clicked
-                        game = ChessGame()
-                    else:
-                        # Handle regular game clicks
-                        game.handle_click(mouse_pos)
-
-            # Fill background
-            screen.fill(BLACK)
+                    game.handle_click(event.pos)
             
-            # Create and draw board surface
+            # Clear screen and draw game state
+            screen.fill(BLACK)
             board_surface = pygame.Surface((BOARD_SIZE, BOARD_SIZE))
             game.draw(board_surface)
-            
-            # Position the board after left panel
             screen.blit(board_surface, (BOARD_OFFSET_X, BOARD_OFFSET_Y))
-            
-            # Draw left panel with music controls and captured pieces list
             draw_left_panel(screen, game)
             
-            # Draw New Game button if game is over
-            if game.game_over:
-                # Create button font
-                if not button_font:
-                    button_font = pygame.font.SysFont('Arial', int(button_height * 0.6), bold=True)
-                
-                # Create button
-                button_rect = pygame.Rect((current_size - button_width) // 2,
-                                         current_size - button_height - margin // 2,
-                                         button_width, button_height)
-                
-                # Check if mouse is hovering over button
-                mouse_pos = pygame.mouse.get_pos()
-                color = button_hover_color if button_rect.collidepoint(mouse_pos) else button_color
-                
-                # Draw button
-                pygame.draw.rect(screen, color, button_rect, border_radius=int(button_height * 0.2))
-                
-                # Draw button text
-                text = button_font.render(button_text, True, WHITE)
-                text_rect = text.get_rect(center=button_rect.center)
-                screen.blit(text, text_rect)
-            else:
-                # Reset button font when starting new game
-                button_font = None
+            # Draw capture meme if needed
+            if game.captured_piece and game.waiting_for_click and not game.game_over:
+                game.captured_piece.draw_capture_meme(screen)
             
-            # Update display
-            pygame.display.flip()
-            clock.tick(60)
+            # Draw winner screen if game is over
+            if game.game_over and game.winner:
+                # Semi-transparent overlay
+                overlay = pygame.Surface(screen.get_size())
+                overlay.fill(BLACK)
+                overlay.set_alpha(180)
+                screen.blit(overlay, (0, 0))
+                
+                # Get current dimensions
+                screen_width = screen.get_width()
+                screen_height = screen.get_height()
+                
+                # Draw chainsaw with scaling based on screen size
+                if chainsaw_surface:
+                    chainsaw_width = min(screen_width * 0.4, 400)  # 40% of screen width, max 400px
+                    chainsaw_height = chainsaw_width * 0.75  # Maintain aspect ratio
+                    scaled_chainsaw = pygame.transform.scale(chainsaw_surface, (int(chainsaw_width), int(chainsaw_height)))
+                    chainsaw_rect = scaled_chainsaw.get_rect(center=(screen_width // 2, screen_height // 2))
+                    screen.blit(scaled_chainsaw, chainsaw_rect)
+                
+                # Draw winner text with dynamic sizing
+                font_size = min(int(screen_width * 0.15), 150)  # 15% of screen width, max 150px
+                winner_font = pygame.font.SysFont('Arial', font_size, bold=True)
+                winner_color = BLUE if game.winner == 'blue' else RED
+                team_name = "DEMOCRATS" if game.winner == 'blue' else "REPUBLICANS"
+                winner_text = winner_font.render(f'{team_name} WIN!', True, winner_color)
+                winner_rect = winner_text.get_rect(center=(screen_width // 2, screen_height * 0.2))
+                screen.blit(winner_text, winner_rect)
+                
+                # Draw New Game button
+                button_width = min(300, screen_width * 0.3)
+                button_height = min(80, screen_height * 0.1)
+                button_rect = pygame.Rect(
+                    screen_width // 2 - button_width // 2,
+                    screen_height * 0.8,  # Position at 80% of screen height
+                    button_width,
+                    button_height
+                )
+                
+                # Button colors
+                button_color = (34, 139, 34)  # Forest green
+                pygame.draw.rect(screen, button_color, button_rect, border_radius=10)
+                pygame.draw.rect(screen, WHITE, button_rect, 3, border_radius=10)
+                
+                # Button text with dynamic sizing
+                button_font_size = min(int(button_height * 0.6), 48)
+                button_font = pygame.font.SysFont('Arial', button_font_size, bold=True)
+                button_text = button_font.render('New Game', True, WHITE)
+                button_text_rect = button_text.get_rect(center=button_rect.center)
+                screen.blit(button_text, button_text_rect)
             
+            try:
+                # Update display
+                pygame.display.flip()
+                clock.tick(60)
+            except pygame.error:
+                break
         except Exception as e:
-            print(f"Error: {e}")
-            continue
+            print(f"Error in game loop: {e}")
+            break
     
-    pygame.quit()
-    sys.exit()
+    # Clean up
+    try:
+        pygame.quit()
+    except:
+        pass
 
 if __name__ == '__main__':
     main()
